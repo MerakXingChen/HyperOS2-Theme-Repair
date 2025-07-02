@@ -49,14 +49,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Shizuku 服务参数
-    private val userServiceArgs = UserServiceArgs(
-        ComponentName(packageName, UserService::class.java.name)  // 修改：使用 packageName 而不是 BuildConfig.APPLICATION_ID
-    )
-        .daemon(false)
-        .processNameSuffix("theme_service")
-        .debuggable(BuildConfig.DEBUG)
-        .version(BuildConfig.VERSION_CODE)
+// Shizuku 服务参数
+private val userServiceArgs = UserServiceArgs(
+    ComponentName(packageName, "com.merak.UserService")  // 使用完整类名
+)
+    .daemon(false)
+    .processNameSuffix("theme_service")
+    .debuggable(BuildConfig.DEBUG)
+    .version(BuildConfig.VERSION_CODE)
 
     // 服务连接
     private val serviceConnection = object : ServiceConnection {
