@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity() {
 
     // Shizuku 服务参数
     private val userServiceArgs = UserServiceArgs(
-        ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name)
+        ComponentName(packageName, UserService::class.java.name)  // 修改：使用 packageName 而不是 BuildConfig.APPLICATION_ID
     )
         .daemon(false)
         .processNameSuffix("theme_service")
