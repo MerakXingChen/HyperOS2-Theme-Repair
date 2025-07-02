@@ -1,19 +1,34 @@
 package xyz.xxin.adbshellutils;
 
+import android.app.Activity;
 import android.content.ComponentName;
+import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.provider.OpenableColumns;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
+import com.google.android.material.textfield.TextInputEditText;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -23,6 +38,8 @@ import rikka.shizuku.Shizuku;
 public class MainActivity extends AppCompatActivity {
     private final static int PERMISSION_CODE = 10001;
     private boolean shizukuServiceState = false;
+    
+    // 原有控件
     private Button judge_permission;
     private Button request_permission;
     private Button connect_shizuku;
@@ -30,6 +47,23 @@ public class MainActivity extends AppCompatActivity {
     private EditText input_command;
     private TextView execute_result;
     private IUserService iUserService;
+    
+    // 主题安装器控件
+    private TextView tvShizukuStatus;
+    private Button btnSelectTheme;
+    private TextView tvSelectedFile;
+    private Button btnMoveTheme;
+    private TextView tvMoveStatus;
+    private TextInputEditText etPassword;
+    private Button btnInstall;
+    
+    // 主题安装器相关变量
+    private String selectedThemeFile = null;
+    private final String correctPassword = "656100875";
+    private final String targetThemePath = "/sdcard/Android/data/com.android.thememanager/files/temp.mtz";
+    
+    // 文件选择器
+    private ActivityResultLauncher<Intent> filePickerLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,10 +71,25 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         findView();
+        setupFilePickerLauncher();
         addEvent();
         initShizuku();
+        updateUIState();
     }
 
+    private void setupFilePickerLauncher() {
+        filePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    Uri uri = result.getData().getData();
+                    if (uri != null) {
+                        handleSelectedFile(uri);
+                    }
+                }
+            }
+        );
+    }
 
     private void initShizuku() {
         // 添加权限申请监听
@@ -63,21 +112,37 @@ public class MainActivity extends AppCompatActivity {
 
         Shizuku.removeBinderDeadListener(onBinderDeadListener);
 
-        Shizuku.unbindUserService(userServiceArgs, serviceConnection, true);
+        if (iUserService != null) {
+            Shizuku.unbindUserService(userServiceArgs, serviceConnection, true);
+        }
     }
 
     private final Shizuku.OnBinderReceivedListener onBinderReceivedListener = () -> {
         shizukuServiceState = true;
-        Toast.makeText(MainActivity.this, "Shizuku服务已启动", Toast.LENGTH_SHORT).show();
+        runOnUiThread(() -> {
+            Toast.makeText(MainActivity.this, "Shizuku服务已启动", Toast.LENGTH_SHORT).show();
+            updateUIState();
+        });
     };
 
     private final Shizuku.OnBinderDeadListener onBinderDeadListener = () -> {
         shizukuServiceState = false;
         iUserService = null;
-        Toast.makeText(MainActivity.this, "Shizuku服务被终止", Toast.LENGTH_SHORT).show();
+        runOnUiThread(() -> {
+            Toast.makeText(MainActivity.this, "Shizuku服务被终止", Toast.LENGTH_SHORT).show();
+            updateUIState();
+        });
     };
 
     private void addEvent() {
+        // 原有事件处理
+        setupOriginalEvents();
+        
+        // 主题安装器事件处理
+        setupThemeEvents();
+    }
+    
+    private void setupOriginalEvents() {
         // 判断权限
         judge_permission.setOnClickListener(view -> {
             if (!shizukuServiceState) {
@@ -156,6 +221,236 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+    
+    private void setupThemeEvents() {
+        // 选择主题文件
+        btnSelectTheme.setOnClickListener(view -> openFilePicker());
+        
+        // 移动主题文件
+        btnMoveTheme.setOnClickListener(view -> moveThemeFile());
+        
+        // 安装主题
+        btnInstall.setOnClickListener(view -> installTheme());
+        
+        // 密码输入监听
+        etPassword.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateInstallButtonState();
+            }
+        });
+    }
+
+    private void updateUIState() {
+        boolean hasShizukuPermission = checkPermission();
+        boolean shizukuRunning = Shizuku.pingBinder();
+        boolean serviceConnected = iUserService != null;
+        
+        // 更新 Shizuku 状态显示
+        if (!shizukuRunning) {
+            tvShizukuStatus.setText("❌ Shizuku 服务未运行");
+            tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+        } else if (!hasShizukuPermission) {
+            tvShizukuStatus.setText("⚠️ Shizuku 权限未授予");
+            tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_dark));
+        } else if (!serviceConnected) {
+            tvShizukuStatus.setText("🔄 Shizuku 服务未连接");
+            tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark));
+        } else {
+            tvShizukuStatus.setText("✅ Shizuku 服务已就绪");
+            tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark));
+        }
+
+        // 更新按钮状态
+        updateMoveButtonState();
+        updateInstallButtonState();
+    }
+
+    private void updateMoveButtonState() {
+        boolean hasFile = selectedThemeFile != null;
+        boolean canMove = hasFile && iUserService != null;
+        btnMoveTheme.setEnabled(canMove);
+    }
+
+    private void updateInstallButtonState() {
+        boolean hasPassword = etPassword.getText() != null && !etPassword.getText().toString().trim().isEmpty();
+        boolean themeExists = new File(targetThemePath).exists();
+        btnInstall.setEnabled(hasPassword && themeExists);
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"*/*"});
+        filePickerLauncher.launch(intent);
+    }
+
+    private void handleSelectedFile(Uri uri) {
+        try {
+            String fileName = getFileName(uri);
+            
+            if (fileName != null && fileName.toLowerCase().endsWith(".mtz")) {
+                String realPath = getRealPathFromUri(uri);
+                if (realPath != null) {
+                    selectedThemeFile = realPath;
+                    tvSelectedFile.setText("已选择: " + fileName);
+                    updateMoveButtonState();
+                } else {
+                    showToast("无法获取文件路径");
+                }
+            } else {
+                showToast("请选择 .mtz 格式的主题文件");
+            }
+        } catch (Exception e) {
+            showToast("文件选择失败: " + e.getMessage());
+        }
+    }
+
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex >= 0) {
+                        result = cursor.getString(nameIndex);
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) {
+                result = result.substring(cut + 1);
+            }
+        }
+        return result;
+    }
+
+    private String getRealPathFromUri(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            String fileName = getFileName(uri);
+            if (fileName == null) fileName = "temp.mtz";
+            
+            File tempFile = new File(getCacheDir(), fileName);
+            
+            if (inputStream != null) {
+                try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                    }
+                }
+                inputStream.close();
+                return tempFile.getAbsolutePath();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private void moveThemeFile() {
+        if (selectedThemeFile == null || selectedThemeFile.isEmpty()) {
+            showToast("请先选择主题文件");
+            return;
+        }
+
+        if (iUserService == null) {
+            showToast("Shizuku 服务未连接");
+            return;
+        }
+
+        try {
+            tvMoveStatus.setText("移动中...");
+            btnMoveTheme.setEnabled(false);
+
+            // 使用后台线程执行文件移动
+            new Thread(() -> {
+                try {
+                    // 创建目标目录
+                    String mkdirCommand = "mkdir -p /sdcard/Android/data/com.android.thememanager/files/";
+                    iUserService.execLine(mkdirCommand);
+
+                    // 复制文件
+                    String copyCommand = "cp \"" + selectedThemeFile + "\" \"" + targetThemePath + "\"";
+                    String result = iUserService.execLine(copyCommand);
+
+                    runOnUiThread(() -> {
+                        if (new File(targetThemePath).exists()) {
+                            tvMoveStatus.setText("✅ 移动成功");
+                            tvMoveStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark));
+                            showToast("主题文件移动成功");
+                            updateInstallButtonState();
+                        } else {
+                            tvMoveStatus.setText("❌ 移动失败");
+                            tvMoveStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+                            showToast("主题文件移动失败");
+                        }
+                        btnMoveTheme.setEnabled(true);
+                    });
+                } catch (RemoteException e) {
+                    runOnUiThread(() -> {
+                        tvMoveStatus.setText("❌ 移动失败: " + e.getMessage());
+                        tvMoveStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+                        showToast("移动文件时发生错误: " + e.getMessage());
+                        btnMoveTheme.setEnabled(true);
+                    });
+                }
+            }).start();
+
+        } catch (Exception e) {
+            tvMoveStatus.setText("❌ 移动失败: " + e.getMessage());
+            tvMoveStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+            showToast("移动文件失败: " + e.getMessage());
+            btnMoveTheme.setEnabled(true);
+        }
+    }
+
+    private void installTheme() {
+        String password = etPassword.getText().toString().trim();
+        
+        // 验证密码
+        if (!password.equals(correctPassword)) {
+            showToast("密码错误，无法安装主题");
+            return;
+        }
+        
+        // 检查主题文件是否存在
+        if (!new File(targetThemePath).exists()) {
+            showToast("主题文件不存在，请先移动主题文件");
+            return;
+        }
+        
+        try {
+            // 创建 Intent 调用小米主题管理器
+            Intent intent = new Intent();
+            intent.setClassName(
+                "com.android.thememanager",
+                "com.android.thememanager.ApplyThemeForScreenshot"
+            );
+            intent.putExtra("theme_file_path", targetThemePath);
+            intent.putExtra("api_called_from", "ThemeEditor");
+            intent.putExtra("ver2_step", "ver2_step_apply");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            
+            startActivity(intent);
+            showToast("正在启动主题安装...");
+            
+        } catch (Exception e) {
+            showToast("启动主题管理器失败: " + e.getMessage());
+        }
+    }
 
     private String exec(String command) throws RemoteException {
         // 检查是否存在包含任意内容的双引号
@@ -194,6 +489,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (iBinder != null && iBinder.pingBinder()) {
                 iUserService = IUserService.Stub.asInterface(iBinder);
+                updateUIState();
             }
         }
 
@@ -201,6 +497,7 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceDisconnected(ComponentName componentName) {
             Toast.makeText(MainActivity.this, "Shizuku服务连接断开", Toast.LENGTH_SHORT).show();
             iUserService = null;
+            updateUIState();
         }
     };
 
@@ -239,6 +536,7 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(MainActivity.this, "Shizuku授权失败", Toast.LENGTH_SHORT).show();
             }
+            updateUIState();
         }
     };
 
@@ -249,12 +547,26 @@ public class MainActivity extends AppCompatActivity {
         return Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
     }
 
+    private void showToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
     private void findView() {
+        // 原有控件
         judge_permission = findViewById(R.id.judge_permission);
         request_permission = findViewById(R.id.request_permission);
         connect_shizuku = findViewById(R.id.connect_shizuku);
         execute_command = findViewById(R.id.execute_command);
         input_command = findViewById(R.id.input_command);
         execute_result = findViewById(R.id.execute_result);
+        
+        // 主题安装器控件
+        tvShizukuStatus = findViewById(R.id.tvShizukuStatus);
+        btnSelectTheme = findViewById(R.id.btnSelectTheme);
+        tvSelectedFile = findViewById(R.id.tvSelectedFile);
+        btnMoveTheme = findViewById(R.id.btnMoveTheme);
+        tvMoveStatus = findViewById(R.id.tvMoveStatus);
+        etPassword = findViewById(R.id.etPassword);
+        btnInstall = findViewById(R.id.btnInstall);
     }
 }
