@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Shizuku
+-keep class moe.shizuku.** { *; }
+-keep class rikka.shizuku.** { *; }
+
+# AIDL
+-keep class com.merak.IUserService { *; }
+-keep class com.merak.UserService { *; }
