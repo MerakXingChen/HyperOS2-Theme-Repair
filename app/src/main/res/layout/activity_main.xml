@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true">
@@ -11,275 +10,123 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- 原有的Shizuku功能保持不变 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="小米主题安装器"
-            android:textSize="24sp"
+            android:text="Shizuku Shell 工具"
+            android:textSize="18sp"
             android:textStyle="bold"
-            android:layout_gravity="center_horizontal"
             android:layout_marginBottom="16dp" />
 
-        <!-- Shizuku 状态卡片 -->
-        <androidx.cardview.widget.CardView
+        <Button
+            android:id="@+id/judge_permission"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:text="检查权限"
+            android:layout_marginBottom="8dp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Shizuku 状态"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvShizukuStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="检查中..."
-                    android:textColor="@android:color/holo_orange_dark"
-                    android:layout_marginBottom="8dp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/judge_permission"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="检查权限"
-                        android:layout_marginEnd="8dp" />
-
-                    <Button
-                        android:id="@+id/request_permission"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="申请权限"
-                        android:layout_marginStart="8dp" />
-
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/connect_shizuku"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="连接 Shizuku 服务"
-                    android:layout_marginTop="8dp" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- 第一步：选择主题文件 -->
-        <androidx.cardview.widget.CardView
+        <Button
+            android:id="@+id/request_permission"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:text="申请权限"
+            android:layout_marginBottom="8dp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="步骤 1：选择主题文件"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
-
-                <Button
-                    android:id="@+id/btnSelectTheme"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="选择主题文件 (.mtz)"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvSelectedFile"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="未选择文件"
-                    android:textColor="@android:color/darker_gray"
-                    android:padding="8dp"
-                    android:background="@android:drawable/editbox_background" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- 第二步：移动文件 -->
-        <androidx.cardview.widget.CardView
+        <Button
+            android:id="@+id/connect_shizuku"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:text="连接Shizuku服务"
+            android:layout_marginBottom="16dp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="步骤 2：移动文件到系统目录"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="首次使用需要将主题文件移动到系统指定目录"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/darker_gray"
-                    android:layout_marginBottom="8dp" />
-
-                <Button
-                    android:id="@+id/btnMoveTheme"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="移动主题文件"
-                    android:enabled="false"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvMoveStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="等待操作..."
-                    android:textColor="@android:color/darker_gray"
-                    android:padding="8dp"
-                    android:background="@android:drawable/editbox_background" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- 第三步：验证密码和安装 -->
-        <androidx.cardview.widget.CardView
+        <EditText
+            android:id="@+id/input_command"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:hint="输入Shell命令"
+            android:layout_marginBottom="8dp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="步骤 3：安装主题"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:hint="请输入密码">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etPassword"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textPassword" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <Button
-                    android:id="@+id/btnInstall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="安装主题"
-                    android:enabled="false" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="注意：安装主题需要正确的密码"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/darker_gray"
-                    android:layout_marginTop="8dp" />
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- 测试区域（保留原有功能） -->
-        <androidx.cardview.widget.CardView
+        <Button
+            android:id="@+id/execute_command"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="4dp">
+            android:text="执行命令"
+            android:layout_marginBottom="8dp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+        <TextView
+            android:id="@+id/execute_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="执行结果将显示在这里"
+            android:padding="8dp"
+            android:background="@android:drawable/editbox_background"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="32dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Shell 命令测试"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp" />
+        <!-- 分隔线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@android:color/darker_gray"
+            android:layout_marginBottom="16dp" />
 
-                <EditText
-                    android:id="@+id/input_command"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="输入Shell命令"
-                    android:layout_marginBottom="8dp" />
+        <!-- 添加主题安装功能 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="主题安装工具"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
 
-                <Button
-                    android:id="@+id/execute_command"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="执行命令"
-                    android:layout_marginBottom="8dp" />
+        <Button
+            android:id="@+id/btnSelectTheme"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="选择主题文件 (.mtz)"
+            android:layout_marginBottom="8dp" />
 
-                <TextView
-                    android:id="@+id/execute_result"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="执行结果将显示在这里"
-                    android:textColor="@android:color/darker_gray"
-                    android:padding="8dp"
-                    android:background="@android:drawable/editbox_background"
-                    android:fontFamily="monospace" />
+        <TextView
+            android:id="@+id/tvSelectedFile"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="未选择文件"
+            android:padding="8dp"
+            android:background="@android:drawable/editbox_background"
+            android:layout_marginBottom="8dp" />
 
-            </LinearLayout>
+        <Button
+            android:id="@+id/btnMoveTheme"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="移动主题文件"
+            android:enabled="false"
+            android:layout_marginBottom="8dp" />
 
-        </androidx.cardview.widget.CardView>
+        <TextView
+            android:id="@+id/tvMoveStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="等待操作..."
+            android:padding="8dp"
+            android:background="@android:drawable/editbox_background"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/etPassword"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="输入密码"
+            android:inputType="textPassword"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnInstall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="安装主题"
+            android:enabled="false" />
 
     </LinearLayout>
 
