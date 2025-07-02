@@ -1,7 +1,6 @@
-package xyz.xxin.adbshellutils;
+package com.merak;
 
 interface IUserService {
-
     /**
      * Shizuku服务端定义的销毁方法
      */
@@ -15,12 +14,10 @@ interface IUserService {
     /**
      * 执行命令
      */
-    String execLine(String command) = 2;
+    String exec(String command) = 2;
 
     /**
-     * 执行数组中分离的命令
+     * 复制文件
      */
-    String execArr(in String[] command) = 3;
+    boolean copyFile(String sourcePath, String targetPath) = 3;
 }
-
-
