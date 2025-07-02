@@ -49,9 +49,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Shizuku 服务参数
+    // Shizuku 服务参数 - 使用字符串形式避免编译时依赖
     private val userServiceArgs = UserServiceArgs(
-        ComponentName(packageName, ThemeService::class.java.name)  // 使用简化的类名
+        ComponentName(packageName, "com.merak.ThemeService")
     )
         .daemon(false)
         .processNameSuffix("theme_service")
@@ -307,6 +307,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // 在 moveThemeFile() 方法中使用 themeService
     private fun moveThemeFile() {
         val sourceFile = selectedThemeFile
         if (sourceFile.isNullOrEmpty()) {

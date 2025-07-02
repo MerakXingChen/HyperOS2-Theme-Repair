@@ -39,10 +39,10 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
-        aidl = true  // 关键：启用 AIDL 编译
+        aidl = true
     }
 
-    // 可选：如果需要指定 AIDL 源目录
+    // 明确指定 AIDL 源目录
     sourceSets {
         getByName("main") {
             aidl.srcDirs("src/main/aidl")
