@@ -1,14 +1,10 @@
 package com.merak
 
 import android.app.Activity
-import android.content.ComponentName
 import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.os.IBinder
-import android.os.RemoteException
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.Toast
@@ -17,7 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.merak.databinding.ActivityMainBinding
 import rikka.shizuku.Shizuku
-import rikka.shizuku.Shizuku.UserServiceArgs
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
@@ -30,9 +25,6 @@ class MainActivity : AppCompatActivity() {
     private var selectedThemeFile: String? = null
     private val correctPassword = "656100875"
     private val targetThemePath = "/sdcard/Android/data/com.android.thememanager/files/temp.mtz"
-    
-    private var themeService: IThemeService? = null
-    private var isServiceConnected = false
     
     companion object {
         private const val PERMISSION_CODE = 1001
@@ -49,45 +41,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Shizuku 服务参数 - 使用字符串形式避免编译时依赖
-    private val userServiceArgs = UserServiceArgs(
-        ComponentName(packageName, "com.merak.ThemeService")
-    )
-        .daemon(false)
-        .processNameSuffix("theme_service")
-        .debuggable(BuildConfig.DEBUG)
-        .version(BuildConfig.VERSION_CODE)
-
-    // 服务连接
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            if (service?.pingBinder() == true) {
-                themeService = IThemeService.Stub.asInterface(service)
-                isServiceConnected = true
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "Shizuku 服务连接成功", Toast.LENGTH_SHORT).show()
-                    updateUIState()
-                }
-            }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            themeService = null
-            isServiceConnected = false
-            runOnUiThread {
-                Toast.makeText(this@MainActivity, "Shizuku 服务断开连接", Toast.LENGTH_SHORT).show()
-                updateUIState()
-            }
-        }
-    }
-
     // Shizuku 权限请求监听
     private val onRequestPermissionResultListener = 
         Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
             val granted = grantResult == PackageManager.PERMISSION_GRANTED
             if (granted) {
                 Toast.makeText(this, "Shizuku 权限授予成功", Toast.LENGTH_SHORT).show()
-                bindShizukuService()
             } else {
                 Toast.makeText(this, "Shizuku 权限授予失败", Toast.LENGTH_SHORT).show()
             }
@@ -158,11 +117,6 @@ class MainActivity : AppCompatActivity() {
         // 添加服务状态监听
         Shizuku.addBinderReceivedListenerSticky(onBinderReceivedListener)
         Shizuku.addBinderDeadListener(onBinderDeadListener)
-        
-        // 如果已有权限，尝试绑定服务
-        if (checkShizukuPermission()) {
-            bindShizukuService()
-        }
     }
 
     private fun checkShizukuPermission(): Boolean {
@@ -176,7 +130,6 @@ class MainActivity : AppCompatActivity() {
     private fun requestShizukuPermission() {
         if (checkShizukuPermission()) {
             Toast.makeText(this, "已拥有 Shizuku 权限", Toast.LENGTH_SHORT).show()
-            bindShizukuService()
             return
         }
 
@@ -191,18 +144,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         Shizuku.requestPermission(PERMISSION_CODE)
-    }
-
-    private fun bindShizukuService() {
-        if (!checkShizukuPermission()) {
-            return
-        }
-
-        try {
-            Shizuku.bindUserService(userServiceArgs, serviceConnection)
-        } catch (e: Throwable) {
-            Toast.makeText(this, "绑定 Shizuku 服务失败: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun updateUIState() {
@@ -221,11 +162,6 @@ class MainActivity : AppCompatActivity() {
                 binding.tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_dark))
                 binding.btnRequestShizuku.visibility = android.view.View.VISIBLE
             }
-            !isServiceConnected -> {
-                binding.tvShizukuStatus.text = "🔄 Shizuku 服务连接中..."
-                binding.tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_dark))
-                binding.btnRequestShizuku.visibility = android.view.View.GONE
-            }
             else -> {
                 binding.tvShizukuStatus.text = "✅ Shizuku 服务已就绪"
                 binding.tvShizukuStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
@@ -241,7 +177,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateMoveButtonState() {
         val hasFile = selectedThemeFile != null
-        val canMove = hasFile && isServiceConnected
+        val canMove = hasFile && checkShizukuPermission()
         binding.btnMoveTheme.isEnabled = canMove
     }
 
@@ -307,7 +243,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // 在 moveThemeFile() 方法中使用 themeService
     private fun moveThemeFile() {
         val sourceFile = selectedThemeFile
         if (sourceFile.isNullOrEmpty()) {
@@ -315,8 +250,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!isServiceConnected || themeService == null) {
-            showToast("Shizuku 服务未连接")
+        if (!checkShizukuPermission()) {
+            showToast("Shizuku 权限未授予")
             return
         }
 
@@ -324,12 +259,21 @@ class MainActivity : AppCompatActivity() {
             binding.tvMoveStatus.text = "移动中..."
             binding.btnMoveTheme.isEnabled = false
 
-            // 使用 Shizuku 服务移动文件
+            // 使用 Shizuku 的 Shell 命令复制文件
             Thread {
                 try {
-                    val success = themeService?.copyFile(sourceFile, targetThemePath) ?: false
+                    // 创建目标目录
+                    val mkdirCommand = "mkdir -p /sdcard/Android/data/com.android.thememanager/files/"
+                    val mkdirResult = Shizuku.newProcess(arrayOf("sh", "-c", mkdirCommand), null, null)
+                        .waitFor()
+
+                    // 复制文件
+                    val copyCommand = "cp \"$sourceFile\" \"$targetThemePath\""
+                    val copyResult = Shizuku.newProcess(arrayOf("sh", "-c", copyCommand), null, null)
+                        .waitFor()
+
                     runOnUiThread {
-                        if (success) {
+                        if (copyResult == 0) {
                             binding.tvMoveStatus.text = "✅ 移动成功"
                             binding.tvMoveStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
                             showToast("主题文件移动成功")
@@ -341,7 +285,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         binding.btnMoveTheme.isEnabled = true
                     }
-                } catch (e: RemoteException) {
+                } catch (e: Exception) {
                     runOnUiThread {
                         binding.tvMoveStatus.text = "❌ 移动失败: ${e.message}"
                         binding.tvMoveStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
@@ -401,15 +345,6 @@ class MainActivity : AppCompatActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        
-        // 解绑 Shizuku 服务
-        if (isServiceConnected) {
-            try {
-                Shizuku.unbindUserService(userServiceArgs, serviceConnection, true)
-            } catch (e: Exception) {
-                // 忽略解绑错误
-            }
-        }
         
         // 移除监听器
         Shizuku.removeRequestPermissionResultListener(onRequestPermissionResultListener)

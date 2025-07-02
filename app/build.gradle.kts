@@ -39,18 +39,8 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
-        aidl = true
     }
 
-    // 明确指定Build Tools版本
-    buildToolsVersion = "34.0.0"
-
-    // 明确指定 AIDL 源目录
-    sourceSets {
-        getByName("main") {
-            aidl.srcDirs("src/main/aidl")
-        }
-    }
 }
 
 dependencies {
