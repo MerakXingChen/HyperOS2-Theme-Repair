@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     private val correctPassword = "656100875"
     private val targetThemePath = "/sdcard/Android/data/com.android.thememanager/files/temp.mtz"
     
-    private var userService: IUserService? = null
+    private var themeService: IThemeService? = null
     private var isServiceConnected = false
     
     companion object {
@@ -49,20 +49,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-// Shizuku 服务参数
-private val userServiceArgs = UserServiceArgs(
-    ComponentName(packageName, "com.merak.UserService")  // 使用完整类名
-)
-    .daemon(false)
-    .processNameSuffix("theme_service")
-    .debuggable(BuildConfig.DEBUG)
-    .version(BuildConfig.VERSION_CODE)
+    // Shizuku 服务参数
+    private val userServiceArgs = UserServiceArgs(
+        ComponentName(packageName, ThemeService::class.java.name)  // 使用简化的类名
+    )
+        .daemon(false)
+        .processNameSuffix("theme_service")
+        .debuggable(BuildConfig.DEBUG)
+        .version(BuildConfig.VERSION_CODE)
 
     // 服务连接
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             if (service?.pingBinder() == true) {
-                userService = IUserService.Stub.asInterface(service)
+                themeService = IThemeService.Stub.asInterface(service)
                 isServiceConnected = true
                 runOnUiThread {
                     Toast.makeText(this@MainActivity, "Shizuku 服务连接成功", Toast.LENGTH_SHORT).show()
@@ -72,7 +72,7 @@ private val userServiceArgs = UserServiceArgs(
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
-            userService = null
+            themeService = null
             isServiceConnected = false
             runOnUiThread {
                 Toast.makeText(this@MainActivity, "Shizuku 服务断开连接", Toast.LENGTH_SHORT).show()
@@ -314,7 +314,7 @@ private val userServiceArgs = UserServiceArgs(
             return
         }
 
-        if (!isServiceConnected || userService == null) {
+        if (!isServiceConnected || themeService == null) {
             showToast("Shizuku 服务未连接")
             return
         }
@@ -326,7 +326,7 @@ private val userServiceArgs = UserServiceArgs(
             // 使用 Shizuku 服务移动文件
             Thread {
                 try {
-                    val success = userService?.copyFile(sourceFile, targetThemePath) ?: false
+                    val success = themeService?.copyFile(sourceFile, targetThemePath) ?: false
                     runOnUiThread {
                         if (success) {
                             binding.tvMoveStatus.text = "✅ 移动成功"

@@ -3,7 +3,7 @@ package com.merak
 import android.os.RemoteException
 import java.io.*
 
-class UserService : IUserService.Stub() {
+class ThemeService : IThemeService.Stub() {
     
     @Throws(RemoteException::class)
     override fun destroy() {
